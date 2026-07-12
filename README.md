@@ -30,6 +30,7 @@
 ---
 
 ## 🎨 Tampilan
+<img width="2559" height="1348" alt="image" src="https://github.com/user-attachments/assets/ab66be42-4200-4c74-b2c0-ce91d7479d44" />
 
 > UI didesain dengan vibe **glassmorphism** + palet warna warm pastel (clay, blush, sage) terinspirasi dari Linear, Notion, dan Arc Browser.
 
