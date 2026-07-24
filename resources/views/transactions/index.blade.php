@@ -229,6 +229,11 @@
                             @endforeach
                         </tbody>
                     </table>
+                    @if ($transactions->hasPages())
+                        <div class="px-6 py-4 border-t border-clay-100 dark:border-stone-800/60">
+                            {{ $transactions->links() }}
+                        </div>
+                    @endif
                 @endif
             </div>
         </div>
@@ -400,7 +405,10 @@
 
             // Reset inputs
             form.reset();
-            document.getElementById('modal_date').value = new Date().toISOString().substring(0, 10);
+            const localDate = new Date();
+            const offset = localDate.getTimezoneOffset();
+            const localISODate = new Date(localDate.getTime() - (offset * 60 * 1000)).toISOString().substring(0, 10);
+            document.getElementById('modal_date').value = localISODate;
 
             filterCategories();
 

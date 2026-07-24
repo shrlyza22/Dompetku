@@ -43,7 +43,7 @@
                 <div class="relative shrink-0">
                     <div class="w-20 h-20 rounded-full overflow-hidden ring-4 ring-clay-200 dark:ring-stone-700 shadow-md">
                         <template x-if="previewUrl">
-                            <img :src="previewUrl" alt="Avatar Preview" class="w-full h-full object-cover">
+                            <img :src="previewUrl" alt="Avatar Preview" class="w-full h-full object-cover" referrerpolicy="no-referrer">
                         </template>
                         <template x-if="!previewUrl">
                             <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-clay-300 to-blush-300 text-white text-2xl font-extrabold">

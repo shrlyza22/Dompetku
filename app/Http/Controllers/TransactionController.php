@@ -10,43 +10,14 @@ class TransactionController extends Controller
     // Halaman daftar transaksi dengan pencarian & filter
     public function index(Request $request)
     {
-        $query = auth()->user()->transactions()->with(['wallet', 'category']);
+        $transactions = auth()->user()->transactions()
+            ->with(['wallet', 'category'])
+            ->filter($request->all())
+            ->latest('date')
+            ->latest('id')
+            ->paginate(15)
+            ->withQueryString();
 
-        // Filter Pencarian (Judul / Catatan)
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-
-        // Filter Tipe (Pemasukan / Pengeluaran)
-        if ($request->filled('type')) {
-            $query->where('type', $request->input('type'));
-        }
-
-        // Filter Dompet (Wallet)
-        if ($request->filled('wallet_id')) {
-            $query->where('wallet_id', $request->input('wallet_id'));
-        }
-
-        // Filter Kategori (Category)
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->input('category_id'));
-        }
-
-        // Filter Tanggal Mulai
-        if ($request->filled('start_date')) {
-            $query->whereDate('date', '>=', $request->input('start_date'));
-        }
-
-        // Filter Tanggal Selesai
-        if ($request->filled('end_date')) {
-            $query->whereDate('date', '<=', $request->input('end_date'));
-        }
-
-        $transactions = $query->latest('date')->latest('id')->get();
         $wallets = auth()->user()->wallets;
         $categories = auth()->user()->categories;
 
@@ -146,33 +117,12 @@ class TransactionController extends Controller
     // Ekspor CSV
     public function exportCsv(Request $request)
     {
-        $query = auth()->user()->transactions()->with(['wallet', 'category']);
-
-        // Terapkan filter yang sama
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-        if ($request->filled('type')) {
-            $query->where('type', $request->input('type'));
-        }
-        if ($request->filled('wallet_id')) {
-            $query->where('wallet_id', $request->input('wallet_id'));
-        }
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->input('category_id'));
-        }
-        if ($request->filled('start_date')) {
-            $query->whereDate('date', '>=', $request->input('start_date'));
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('date', '<=', $request->input('end_date'));
-        }
-
-        $transactions = $query->latest('date')->latest('id')->get();
+        $transactions = auth()->user()->transactions()
+            ->with(['wallet', 'category'])
+            ->filter($request->all())
+            ->latest('date')
+            ->latest('id')
+            ->get();
 
         $callback = function() use ($transactions) {
             $file = fopen('php://output', 'w');
@@ -207,33 +157,12 @@ class TransactionController extends Controller
     // Ekspor PDF
     public function exportPdf(Request $request)
     {
-        $query = auth()->user()->transactions()->with(['wallet', 'category']);
-
-        // Terapkan filter yang sama
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
-        if ($request->filled('type')) {
-            $query->where('type', $request->input('type'));
-        }
-        if ($request->filled('wallet_id')) {
-            $query->where('wallet_id', $request->input('wallet_id'));
-        }
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->input('category_id'));
-        }
-        if ($request->filled('start_date')) {
-            $query->whereDate('date', '>=', $request->input('start_date'));
-        }
-        if ($request->filled('end_date')) {
-            $query->whereDate('date', '<=', $request->input('end_date'));
-        }
-
-        $transactions = $query->latest('date')->latest('id')->get();
+        $transactions = auth()->user()->transactions()
+            ->with(['wallet', 'category'])
+            ->filter($request->all())
+            ->latest('date')
+            ->latest('id')
+            ->get();
 
         // Hitung ringkasan untuk laporan PDF
         $totalIncome = $transactions->where('type', 'income')->sum('amount');

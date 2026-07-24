@@ -10,7 +10,15 @@ class WalletController extends Controller
     // Tampilkan daftar dompet
     public function index()
     {
-        $wallets = auth()->user()->wallets()->withCount('transactions')->get();
+        $wallets = auth()->user()->wallets()
+            ->withCount('transactions')
+            ->withSum(['transactions as total_income' => function ($query) {
+                $query->where('type', 'income');
+            }], 'amount')
+            ->withSum(['transactions as total_expense' => function ($query) {
+                $query->where('type', 'expense');
+            }], 'amount')
+            ->get();
         return view('wallets.index', compact('wallets'));
     }
 

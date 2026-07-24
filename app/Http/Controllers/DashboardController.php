@@ -26,11 +26,14 @@ class DashboardController extends Controller
             ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->sum('amount');
 
-        // Saldo bersih
-        $netBalance = $totalIncome - $totalExpense;
+        // Saldo bersih (seluruh waktu) untuk mencerminkan total uang riil yang dimiliki
+        $allTimeIncome = $user->transactions()->where('type', 'income')->sum('amount');
+        $allTimeExpense = $user->transactions()->where('type', 'expense')->sum('amount');
+        $netBalance = $allTimeIncome - $allTimeExpense;
 
-        // 5 Transaksi terbaru
+        // 5 Transaksi terbaru (Eager load category & wallet untuk cegah N+1)
         $recentTransactions = $user->transactions()
+            ->with(['category', 'wallet'])
             ->latest('date')
             ->latest('id')
             ->take(5)

@@ -43,4 +43,22 @@ class Transaction extends Model
     {
         return $this->belongsTo(Category::class);
     }
+
+    /**
+     * Local scope untuk menyatukan logika filter pencarian & kategori/dompet/tanggal
+     */
+    public function scopeFilter($query, array $filters)
+    {
+        return $query->when($filters['search'] ?? null, function ($q, $search) {
+            $q->where(function ($sq) use ($search) {
+                $sq->where('title', 'like', "%{$search}%")
+                   ->orWhere('description', 'like', "%{$search}%");
+            });
+        })
+        ->when($filters['type'] ?? null, fn($q, $type) => $q->where('type', $type))
+        ->when($filters['wallet_id'] ?? null, fn($q, $walletId) => $q->where('wallet_id', $walletId))
+        ->when($filters['category_id'] ?? null, fn($q, $categoryId) => $q->where('category_id', $categoryId))
+        ->when($filters['start_date'] ?? null, fn($q, $startDate) => $q->whereDate('date', '>=', $startDate))
+        ->when($filters['end_date'] ?? null, fn($q, $endDate) => $q->whereDate('date', '<=', $endDate));
+    }
 }

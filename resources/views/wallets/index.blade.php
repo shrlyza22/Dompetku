@@ -110,14 +110,21 @@
                                     <thead class="bg-clay-500/5 text-stone-600 dark:text-stone-300 border-b border-clay-100 dark:border-stone-800/60">
                                         <tr>
                                             <th class="px-6 py-4 font-bold uppercase tracking-wider text-xs">{{ __('Nama Dompet') }}</th>
+                                            <th class="px-6 py-4 font-bold uppercase tracking-wider text-xs text-right">{{ __('Saldo') }}</th>
                                             <th class="px-6 py-4 font-bold uppercase tracking-wider text-xs text-center">{{ __('Jumlah Transaksi') }}</th>
                                             <th class="px-6 py-4 font-bold uppercase tracking-wider text-xs text-center">{{ __('Aksi') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-clay-100 dark:divide-stone-800/60">
                                         @foreach ($wallets as $wallet)
+                                            @php
+                                                $balance = ($wallet->total_income ?? 0) - ($wallet->total_expense ?? 0);
+                                            @endphp
                                             <tr class="text-stone-700 dark:text-stone-300 hover:bg-clay-500/5 transition-colors">
                                                 <td class="px-6 py-4 font-semibold text-stone-900 dark:text-white">{{ $wallet->name }}</td>
+                                                <td class="px-6 py-4 text-right font-extrabold {{ $balance >= 0 ? 'text-sage-600 dark:text-sage-400' : 'text-blush-600 dark:text-blush-400' }}">
+                                                    Rp {{ number_format($balance, 0, ',', '.') }}
+                                                </td>
                                                 <td class="px-6 py-4 text-center font-medium">{{ $wallet->transactions_count }}</td>
                                                 <td class="px-6 py-4 text-center">
                                                     <form action="{{ route('wallets.destroy', $wallet) }}" method="POST"

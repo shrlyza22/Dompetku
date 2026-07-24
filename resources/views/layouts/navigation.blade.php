@@ -62,9 +62,12 @@
                         <button class="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full text-sm font-semibold text-stone-700 dark:text-stone-200 bg-clay-50/70 dark:bg-stone-800/70 hover:bg-clay-100 dark:hover:bg-stone-700 focus:outline-none transition duration-150">
                             @if(Auth::user()->avatar)
                                 <img src="{{ Auth::user()->avatar }}" alt="{{ Auth::user()->name }}"
-                                     class="w-7 h-7 rounded-full object-cover shrink-0 aspect-square ring-2 ring-clay-200 dark:ring-stone-700">
+                                     class="rounded-full object-cover shrink-0 ring-2 ring-clay-200 dark:ring-stone-700"
+                                     style="width: 1.75rem; height: 1.75rem; min-width: 1.75rem; min-height: 1.75rem;"
+                                     referrerpolicy="no-referrer">
                             @else
-                                <span class="flex items-center justify-center w-7 h-7 aspect-square rounded-full bg-gradient-to-br from-clay-300 to-blush-300 text-white text-xs font-extrabold shrink-0">
+                                <span class="inline-flex items-center justify-center rounded-full bg-gradient-to-br from-clay-300 to-blush-300 text-white text-xs font-extrabold shrink-0"
+                                      style="width: 1.75rem; height: 1.75rem; min-width: 1.75rem; min-height: 1.75rem;">
                                     {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
                                 </span>
                             @endif

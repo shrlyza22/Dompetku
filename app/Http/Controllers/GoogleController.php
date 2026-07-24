@@ -19,33 +19,38 @@ class GoogleController extends Controller
     // Nangkep user setelah balik dari Google
     public function callback()
     {
-        $googleUser = Socialite::driver('google')->user();
+        try {
+            $googleUser = Socialite::driver('google')->user();
 
-        $user = User::where('email', $googleUser->getEmail())->first();
+            $user = User::where('email', $googleUser->getEmail())->first();
 
-        if ($user) {
-            // Kalau emailnya udah terdaftar, tinggal update google_id-nya
-            $user->update([
-                'google_id' => $googleUser->getId(),
-                'avatar'    => $googleUser->getAvatar(),
-            ]);
-        } else {
-            // Kalau belum ada, bikin akun baru
-            $user = User::create([
-                'name'              => $googleUser->getName(),
-                'email'             => $googleUser->getEmail(),
-                'google_id'         => $googleUser->getId(),
-                'avatar'            => $googleUser->getAvatar(),
-                'password'          => Hash::make(Str::random(24)),
-                'email_verified_at' => now(),
-            ]);
+            if ($user) {
+                // Kalau emailnya udah terdaftar, tinggal update google_id-nya
+                $user->update([
+                    'google_id' => $googleUser->getId(),
+                    'avatar'    => $googleUser->getAvatar(),
+                ]);
+            } else {
+                // Kalau belum ada, bikin akun baru
+                $user = User::create([
+                    'name'              => $googleUser->getName(),
+                    'email'             => $googleUser->getEmail(),
+                    'google_id'         => $googleUser->getId(),
+                    'avatar'            => $googleUser->getAvatar(),
+                    'password'          => Hash::make(Str::random(24)),
+                    'email_verified_at' => now(),
+                ]);
 
-            // Isi kategori bawaan untuk user baru Google
-            \App\Models\Category::seedDefaultsForUser($user->id);
+                // Isi kategori bawaan untuk user baru Google
+                \App\Models\Category::seedDefaultsForUser($user->id);
+            }
+
+            Auth::login($user);
+
+            return redirect()->route('dashboard');
+        } catch (\Throwable $e) {
+            return redirect()->route('login')
+                ->with('error', 'Gagal melakukan otentikasi akun Google. Silakan coba lagi.');
         }
-
-        Auth::login($user);
-
-        return redirect()->route('dashboard');
     }
 }
