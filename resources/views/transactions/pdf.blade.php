@@ -79,6 +79,7 @@
         }
         .badge-income { background-color: #d1fae5; color: #065f46; }
         .badge-expense { background-color: #fee2e2; color: #991b1b; }
+        .badge-transfer { background-color: #dbeafe; color: #1e40af; }
         .footer {
             margin-top: 30px;
             text-align: center;
@@ -135,14 +136,24 @@
                         @endif
                     </td>
                     <td>
-                        <span class="badge {{ $trx->type === 'income' ? 'badge-income' : 'badge-expense' }}">
-                            {{ $trx->type === 'income' ? 'Pemasukan' : 'Pengeluaran' }}
-                        </span>
+                        @if ($trx->type === 'income')
+                            <span class="badge badge-income">Pemasukan</span>
+                        @elseif ($trx->type === 'expense')
+                            <span class="badge badge-expense">Pengeluaran</span>
+                        @else
+                            <span class="badge badge-transfer">Transfer</span>
+                        @endif
                     </td>
-                    <td>{{ $trx->wallet ? $trx->wallet->name : 'Tanpa Dompet' }}</td>
+                    <td>
+                        @if ($trx->type === 'transfer')
+                            {{ $trx->wallet ? $trx->wallet->name : 'Tanpa Dompet' }} ➔ {{ $trx->targetWallet ? $trx->targetWallet->name : 'Tanpa Dompet' }}
+                        @else
+                            {{ $trx->wallet ? $trx->wallet->name : 'Tanpa Dompet' }}
+                        @endif
+                    </td>
                     <td>{{ $trx->category ? $trx->category->name : '-' }}</td>
-                    <td class="text-right {{ $trx->type === 'income' ? 'text-green' : 'text-red' }}" style="font-weight: bold; white-space: nowrap;">
-                        {{ $trx->type === 'income' ? '+' : '-' }} Rp {{ number_format($trx->amount, 0, ',', '.') }}
+                    <td class="text-right {{ $trx->type === 'income' ? 'text-green' : ($trx->type === 'expense' ? 'text-red' : '') }}" style="font-weight: bold; white-space: nowrap; {{ $trx->type === 'transfer' ? 'color: #4b5563;' : '' }}">
+                        {{ $trx->type === 'income' ? '+' : ($trx->type === 'expense' ? '-' : '') }} Rp {{ number_format($trx->amount, 0, ',', '.') }}
                     </td>
                 </tr>
             @empty

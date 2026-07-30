@@ -11,7 +11,7 @@ class TransactionController extends Controller
     public function index(Request $request)
     {
         $transactions = auth()->user()->transactions()
-            ->with(['wallet', 'category'])
+            ->with(['wallet', 'targetWallet', 'category'])
             ->filter($request->all())
             ->latest('date')
             ->latest('id')
@@ -46,20 +46,37 @@ class TransactionController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'wallet_id'   => 'nullable|exists:wallets,id,user_id,' . auth()->id(),
-            'category_id' => 'nullable|exists:categories,id,user_id,' . auth()->id(),
-            'type'        => 'required|in:income,expense',
-            'title'       => 'required|string|max:255',
-            'amount'      => 'required|numeric|min:0',
-            'date'        => 'required|date',
-            'description' => 'nullable|string',
+            'wallet_id'        => 'nullable|exists:wallets,id,user_id,' . auth()->id(),
+            'target_wallet_id' => 'nullable|exists:wallets,id,user_id,' . auth()->id(),
+            'category_id'      => 'nullable|exists:categories,id,user_id,' . auth()->id(),
+            'type'             => 'required|in:income,expense,transfer',
+            'title'            => 'required|string|max:255',
+            'amount'           => 'required|numeric|min:0',
+            'date'             => 'required|date',
+            'description'      => 'nullable|string',
         ]);
+
+        if ($validated['type'] === 'transfer') {
+            if (empty($validated['wallet_id']) || empty($validated['target_wallet_id'])) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['target_wallet_id' => 'Dompet asal dan dompet tujuan wajib diisi untuk transfer.']);
+            }
+            if ($validated['wallet_id'] == $validated['target_wallet_id']) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['target_wallet_id' => 'Dompet tujuan tidak boleh sama dengan dompet asal.']);
+            }
+            // Kategori dikosongkan untuk transfer agar tidak mengacaukan budget kategori pengeluaran
+            $validated['category_id'] = null;
+        }
 
         // Otomatis nempel ke user yang lagi login
         auth()->user()->transactions()->create($validated);
 
         return redirect()->route('transactions.index')
-            ->with('success', 'Transaksi berhasil ditambahkan!');
+            ->with('success', 'Transaksi berhasil ditambahkan!')
+            ->with('last_transaction_type', $validated['type']);
     }
 
     // Halaman form edit
@@ -89,19 +106,35 @@ class TransactionController extends Controller
         $transaction = auth()->user()->transactions()->findOrFail($transaction->id);
 
         $validated = $request->validate([
-            'wallet_id'   => 'nullable|exists:wallets,id,user_id,' . auth()->id(),
-            'category_id' => 'nullable|exists:categories,id,user_id,' . auth()->id(),
-            'type'        => 'required|in:income,expense',
-            'title'       => 'required|string|max:255',
-            'amount'      => 'required|numeric|min:0',
-            'date'        => 'required|date',
-            'description' => 'nullable|string',
+            'wallet_id'        => 'nullable|exists:wallets,id,user_id,' . auth()->id(),
+            'target_wallet_id' => 'nullable|exists:wallets,id,user_id,' . auth()->id(),
+            'category_id'      => 'nullable|exists:categories,id,user_id,' . auth()->id(),
+            'type'             => 'required|in:income,expense,transfer',
+            'title'            => 'required|string|max:255',
+            'amount'           => 'required|numeric|min:0',
+            'date'             => 'required|date',
+            'description'      => 'nullable|string',
         ]);
+
+        if ($validated['type'] === 'transfer') {
+            if (empty($validated['wallet_id']) || empty($validated['target_wallet_id'])) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['target_wallet_id' => 'Dompet asal dan dompet tujuan wajib diisi untuk transfer.']);
+            }
+            if ($validated['wallet_id'] == $validated['target_wallet_id']) {
+                return redirect()->back()
+                    ->withInput()
+                    ->withErrors(['target_wallet_id' => 'Dompet tujuan tidak boleh sama dengan dompet asal.']);
+            }
+            $validated['category_id'] = null;
+        }
 
         $transaction->update($validated);
 
         return redirect()->route('transactions.index')
-            ->with('success', 'Transaksi berhasil diperbarui!');
+            ->with('success', 'Transaksi berhasil diperbarui!')
+            ->with('last_transaction_type', $validated['type']);
     }
 
     // Hapus transaksi (Soft Delete)
@@ -118,7 +151,7 @@ class TransactionController extends Controller
     public function exportCsv(Request $request)
     {
         $transactions = auth()->user()->transactions()
-            ->with(['wallet', 'category'])
+            ->with(['wallet', 'targetWallet', 'category'])
             ->filter($request->all())
             ->latest('date')
             ->latest('id')
@@ -130,11 +163,27 @@ class TransactionController extends Controller
             fputcsv($file, ['Tanggal', 'Judul', 'Tipe', 'Dompet', 'Kategori', 'Jumlah (Rp)', 'Catatan']);
 
             foreach ($transactions as $trx) {
+                $typeLabel = '';
+                if ($trx->type === 'income') {
+                    $typeLabel = 'Pemasukan';
+                } elseif ($trx->type === 'expense') {
+                    $typeLabel = 'Pengeluaran';
+                } else {
+                    $typeLabel = 'Transfer';
+                }
+
+                $walletLabel = '';
+                if ($trx->type === 'transfer') {
+                    $walletLabel = ($trx->wallet ? $trx->wallet->name : 'Tanpa Dompet') . ' -> ' . ($trx->targetWallet ? $trx->targetWallet->name : 'Tanpa Dompet');
+                } else {
+                    $walletLabel = $trx->wallet ? $trx->wallet->name : 'Tanpa Dompet';
+                }
+
                 fputcsv($file, [
                     $trx->date->format('Y-m-d'),
                     $trx->title,
-                    $trx->type === 'income' ? 'Pemasukan' : 'Pengeluaran',
-                    $trx->wallet ? $trx->wallet->name : 'Tanpa Dompet',
+                    $typeLabel,
+                    $walletLabel,
                     $trx->category ? $trx->category->name : 'Tanpa Kategori',
                     $trx->amount,
                     $trx->description ?? ''
@@ -158,7 +207,7 @@ class TransactionController extends Controller
     public function exportPdf(Request $request)
     {
         $transactions = auth()->user()->transactions()
-            ->with(['wallet', 'category'])
+            ->with(['wallet', 'targetWallet', 'category'])
             ->filter($request->all())
             ->latest('date')
             ->latest('id')
@@ -172,5 +221,130 @@ class TransactionController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('transactions.pdf', compact('transactions', 'totalIncome', 'totalExpense', 'netBalance'));
         
         return $pdf->download('laporan-transaksi-' . date('Ymd-His') . '.pdf');
+    }
+
+    // Import CSV
+    public function importCsv(Request $request)
+    {
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
+        ]);
+
+        $file = $request->file('csv_file');
+        $path = $file->getRealPath();
+        
+        $data = [];
+        if (($handle = fopen($path, 'r')) !== false) {
+            // Read header
+            $header = fgetcsv($handle, 1000, ',');
+            
+            // Loop rows
+            while (($row = fgetcsv($handle, 1000, ',')) !== false) {
+                // Skip empty rows
+                if (count($row) < 6) continue;
+                $data[] = $row;
+            }
+            fclose($handle);
+        }
+
+        if (empty($data)) {
+            return redirect()->back()->with('error', 'File CSV kosong atau tidak valid!');
+        }
+
+        $importedCount = 0;
+
+        // Preload wallets and categories to reduce DB hits
+        $wallets = auth()->user()->wallets()->pluck('id', 'name')->toArray();
+        $categories = auth()->user()->categories()->pluck('id', 'name')->toArray();
+
+        foreach ($data as $row) {
+            // Mapping: 0: Tanggal, 1: Judul, 2: Tipe, 3: Dompet, 4: Kategori, 5: Jumlah, 6: Catatan
+            $date = !empty($row[0]) ? trim($row[0]) : date('Y-m-d');
+            $title = !empty($row[1]) ? trim($row[1]) : 'Transaksi Tanpa Judul';
+            
+            $rawType = !empty($row[2]) ? strtolower(trim($row[2])) : 'expense';
+            $type = 'expense';
+            if ($rawType === 'pemasukan' || $rawType === 'income') {
+                $type = 'income';
+            } elseif ($rawType === 'transfer') {
+                $type = 'transfer';
+            }
+
+            $rawWallet = !empty($row[3]) ? trim($row[3]) : '';
+            $walletId = null;
+            $targetWalletId = null;
+
+            if ($type === 'transfer') {
+                $parts = preg_split('/\s*(?:->|➔|➔|➔)\s*/', $rawWallet);
+                $sourceWalletName = !empty($parts[0]) ? trim($parts[0]) : '';
+                $targetWalletName = !empty($parts[1]) ? trim($parts[1]) : '';
+
+                if ($sourceWalletName) {
+                    if (array_key_exists($sourceWalletName, $wallets)) {
+                        $walletId = $wallets[$sourceWalletName];
+                    } else {
+                        $newWallet = auth()->user()->wallets()->create(['name' => $sourceWalletName]);
+                        $wallets[$sourceWalletName] = $newWallet->id;
+                        $walletId = $newWallet->id;
+                    }
+                }
+
+                if ($targetWalletName) {
+                    if (array_key_exists($targetWalletName, $wallets)) {
+                        $targetWalletId = $wallets[$targetWalletName];
+                    } else {
+                        $newWallet = auth()->user()->wallets()->create(['name' => $targetWalletName]);
+                        $wallets[$targetWalletName] = $newWallet->id;
+                        $targetWalletId = $newWallet->id;
+                    }
+                }
+            } else {
+                if ($rawWallet) {
+                    if (array_key_exists($rawWallet, $wallets)) {
+                        $walletId = $wallets[$rawWallet];
+                    } else {
+                        $newWallet = auth()->user()->wallets()->create(['name' => $rawWallet]);
+                        $wallets[$rawWallet] = $newWallet->id;
+                        $walletId = $newWallet->id;
+                    }
+                }
+            }
+
+            $rawCategory = !empty($row[4]) ? trim($row[4]) : '';
+            $categoryId = null;
+            if ($type !== 'transfer' && $rawCategory && $rawCategory !== '-') {
+                if (array_key_exists($rawCategory, $categories)) {
+                    $categoryId = $categories[$rawCategory];
+                } else {
+                    $newCategory = auth()->user()->categories()->create([
+                        'name' => $rawCategory,
+                        'type' => $type,
+                        'color' => '#' . substr(md5($rawCategory), 0, 6)
+                    ]);
+                    $categories[$rawCategory] = $newCategory->id;
+                    $categoryId = $newCategory->id;
+                }
+            }
+
+            $amount = !empty($row[5]) ? floatval(preg_replace('/[^0-9.]/', '', $row[5])) : 0;
+            $description = !empty($row[6]) ? trim($row[6]) : null;
+
+            auth()->user()->transactions()->create([
+                'wallet_id'        => $walletId,
+                'target_wallet_id' => $targetWalletId,
+                'category_id'      => $categoryId,
+                'type'             => $type,
+                'title'            => $title,
+                'amount'           => $amount,
+                'date'             => $date,
+                'description'      => $description,
+            ]);
+
+            $importedCount++;
+        }
+
+        return redirect()->route('transactions.index')
+            ->with('success', "$importedCount transaksi berhasil diimport!")
+            ->with('last_transaction_type', 'income');
     }
 }

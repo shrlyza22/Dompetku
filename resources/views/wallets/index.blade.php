@@ -118,7 +118,7 @@
                                     <tbody class="divide-y divide-clay-100 dark:divide-stone-800/60">
                                         @foreach ($wallets as $wallet)
                                             @php
-                                                $balance = ($wallet->total_income ?? 0) - ($wallet->total_expense ?? 0);
+                                                $balance = ($wallet->total_income ?? 0) + ($wallet->total_transfer_in ?? 0) - ($wallet->total_expense ?? 0) - ($wallet->total_transfer_out ?? 0);
                                             @endphp
                                             <tr class="text-stone-700 dark:text-stone-300 hover:bg-clay-500/5 transition-colors">
                                                 <td class="px-6 py-4 font-semibold text-stone-900 dark:text-white">{{ $wallet->name }}</td>
@@ -158,13 +158,14 @@
 
     @push('scripts')
     <script>
+        let currentBudgetLimit = {{ auth()->user()->monthly_budget_limit ?? 5000000 }};
+
         document.addEventListener('DOMContentLoaded', function() {
             updateBudgetUI();
         });
 
         function getBudgetLimit() {
-            const stored = localStorage.getItem('monthly_budget_limit');
-            return stored ? parseInt(stored) : 5000000; // Default 5 million
+            return currentBudgetLimit;
         }
 
         function updateBudgetUI() {
@@ -200,9 +201,31 @@
             if (newLimitStr !== null) {
                 const newLimit = parseInt(newLimitStr.replace(/\D/g, ''));
                 if (!isNaN(newLimit) && newLimit > 0) {
-                    localStorage.setItem('monthly_budget_limit', newLimit);
-                    updateBudgetUI();
-                    showToast('{{ __('Limit anggaran bulanan berhasil diperbarui!') }}', 'success');
+                    fetch('{{ route('profile.budget.update') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({ limit: newLimit })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            currentBudgetLimit = data.limit;
+                            updateBudgetUI();
+                            showToast(data.message, 'success');
+                            if (typeof AudioSynth !== 'undefined') {
+                                AudioSynth.playTransfer();
+                            }
+                        } else {
+                            showToast('{{ __('Gagal memperbarui limit anggaran!') }}', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('{{ __('Gagal memperbarui limit anggaran!') }}', 'error');
+                    });
                 } else {
                     showToast('{{ __('Masukkan angka limit yang valid!') }}', 'error');
                 }

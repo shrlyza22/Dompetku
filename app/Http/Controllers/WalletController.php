@@ -18,6 +18,12 @@ class WalletController extends Controller
             ->withSum(['transactions as total_expense' => function ($query) {
                 $query->where('type', 'expense');
             }], 'amount')
+            ->withSum(['transactions as total_transfer_out' => function ($query) {
+                $query->where('type', 'transfer');
+            }], 'amount')
+            ->withSum(['transferInTransactions as total_transfer_in' => function ($query) {
+                $query->where('type', 'transfer');
+            }], 'amount')
             ->get();
         return view('wallets.index', compact('wallets'));
     }

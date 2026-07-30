@@ -13,6 +13,7 @@ class Transaction extends Model
     protected $fillable = [
         'user_id',
         'wallet_id',
+        'target_wallet_id',
         'category_id',
         'type',
         'title',
@@ -38,6 +39,12 @@ class Transaction extends Model
         return $this->belongsTo(Wallet::class);
     }
 
+    // Dompet tujuan jika tipe transaksi adalah transfer
+    public function targetWallet(): BelongsTo
+    {
+        return $this->belongsTo(Wallet::class, 'target_wallet_id');
+    }
+
     // Transaksi dikategorikan ke dalam suatu kategori (optional)
     public function category(): BelongsTo
     {
@@ -56,7 +63,12 @@ class Transaction extends Model
             });
         })
         ->when($filters['type'] ?? null, fn($q, $type) => $q->where('type', $type))
-        ->when($filters['wallet_id'] ?? null, fn($q, $walletId) => $q->where('wallet_id', $walletId))
+        ->when($filters['wallet_id'] ?? null, function ($q, $walletId) {
+            $q->where(function ($sq) use ($walletId) {
+                $sq->where('wallet_id', $walletId)
+                   ->orWhere('target_wallet_id', $walletId);
+            });
+        })
         ->when($filters['category_id'] ?? null, fn($q, $categoryId) => $q->where('category_id', $categoryId))
         ->when($filters['start_date'] ?? null, fn($q, $startDate) => $q->whereDate('date', '>=', $startDate))
         ->when($filters['end_date'] ?? null, fn($q, $endDate) => $q->whereDate('date', '<=', $endDate));

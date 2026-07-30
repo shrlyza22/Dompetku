@@ -1,46 +1,44 @@
 <x-app-layout>
     <x-slot name="title">{{ __('Dashboard') }}</x-slot>
     <x-slot name="header">
-        <h2 class="font-extrabold text-xl text-stone-800 dark:text-stone-200 leading-tight">
-            {{ __('Halo, :name! 👋', ['name' => auth()->user()->name]) }}
-        </h2>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h2 class="font-extrabold text-xl text-stone-800 dark:text-stone-200 leading-tight">
+                {{ __('Halo, :name! 👋', ['name' => auth()->user()->name]) }}
+            </h2>
+            <form method="GET" action="{{ route('dashboard') }}" class="flex items-center gap-2">
+                <select name="month" onchange="this.form.submit()"
+                        class="rounded-xl border-clay-200 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-200 text-xs font-bold focus:border-clay-500 focus:ring-clay-500 shadow-sm py-1.5 pl-3 pr-8">
+                    @foreach($availableMonths as $num => $name)
+                        <option value="{{ $num }}" {{ $month == $num ? 'selected' : '' }}>
+                            {{ __($name) }}
+                        </option>
+                    @endforeach
+                </select>
+                <select name="year" onchange="this.form.submit()"
+                        class="rounded-xl border-clay-200 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-200 text-xs font-bold focus:border-clay-500 focus:ring-clay-500 shadow-sm py-1.5 pl-3 pr-8">
+                    @foreach($availableYears as $y)
+                        <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>
+                            {{ $y }}
+                        </option>
+                    @endforeach
+                </select>
+            </form>
+        </div>
     </x-slot>
     <x-slot name="footer">1</x-slot>
 
     <div class="pt-8 pb-16">
         <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-10">
-
             <!-- Welcome Header (Gen-Z Style) -->
-            <div class="relative overflow-hidden glass-card p-8 rounded-3xl mb-8 flex flex-col md:flex-row items-center justify-between gap-6 border-clay-500/10 glow-clay">
+            <div class="relative overflow-hidden glass-card p-8 rounded-3xl mb-8 border-clay-500/10 glow-clay">
                 <div class="z-10 text-center md:text-left">
                     <span class="inline-block text-xs font-extrabold uppercase tracking-widest text-clay-600 dark:text-clay-300 bg-clay-500/10 px-3.5 py-1.5 rounded-xl mb-3">#AturDuitBiarGaBoncos 💸</span>
                     <h1 class="text-3xl font-extrabold text-stone-900 dark:text-white leading-tight">
                         {{ __('Atur Duitmu, Bebas Boncos! 🚀') }}
                     </h1>
-                    <p class="text-stone-500 dark:text-stone-400 text-sm mt-2 max-w-lg">
+                    <p class="text-stone-500 dark:text-stone-400 text-sm mt-3 max-w-2xl leading-relaxed">
                         {{ __('Gimana nih finansial kamu bulan ini? Yuk catat terus pemasukan dan pengeluaran kamu biar saldo tabungan tetep aman dan bebas boncos! 🚀') }}
                     </p>
-                </div>
-                <!-- Decorative illustration -->
-                <div class="flex-shrink-0 relative w-40 h-40 md:w-48 md:h-48 float-animation">
-                    <svg viewBox="0 0 200 200" class="w-full h-full">
-                        <defs>
-                            <linearGradient id="blobGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stop-color="#F5CDBC" />
-                                <stop offset="100%" stop-color="#F3C7CE" />
-                            </linearGradient>
-                        </defs>
-                        <path fill="url(#blobGrad)" d="M45.2,-58.4C58.4,-49.9,68.7,-35.6,72.6,-19.7C76.6,-3.8,74.3,13.7,66.6,28.4C58.9,43.1,45.9,55,30.9,63.2C15.9,71.4,-1.1,75.9,-17.6,72.7C-34.1,69.5,-50.1,58.6,-60.6,43.7C-71.1,28.8,-76.1,9.9,-73.5,-7.5C-70.9,-24.9,-60.7,-40.8,-47.1,-49.3C-33.5,-57.8,-16.7,-58.9,0.6,-59.7C17.9,-60.5,35.9,-61,45.2,-58.4Z" transform="translate(100 100)" />
-                        <circle cx="70" cy="60" r="7" fill="#E08863" opacity="0.8"/>
-                        <circle cx="140" cy="130" r="5" fill="#9AAC70" opacity="0.8"/>
-                        <circle cx="145" cy="55" r="4" fill="#DC7A8A" opacity="0.8"/>
-                        <g transform="translate(62 78)">
-                            <rect x="0" y="10" width="76" height="52" rx="12" fill="#FFFDF9" stroke="#CC6B45" stroke-width="3"/>
-                            <path d="M0 28 H76" stroke="#CC6B45" stroke-width="3"/>
-                            <circle cx="58" cy="45" r="7" fill="#CC6B45"/>
-                            <path d="M8 10 L20 -6 H56 L68 10" fill="none" stroke="#CC6B45" stroke-width="3" stroke-linejoin="round"/>
-                        </g>
-                    </svg>
                 </div>
             </div>
 
@@ -218,7 +216,7 @@
                         new Chart(ctxFinance.getContext('2d'), {
                             type: 'doughnut',
                             data: {
-                                labels: ['{{ __('Masuk') }}', '{{ __('Keluar') }}'],
+                                labels: ['{{ __('Pemasukan') }}', '{{ __('Pengeluaran') }}'],
                                 datasets: [{
                                     data: [{{ $totalIncome }}, {{ $totalExpense }}],
                                     backgroundColor: [

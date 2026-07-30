@@ -14,6 +14,11 @@
                    title="{{ __('Ekspor PDF') }}">
                    {{ __('Ekspor PDF') }}
                 </a>
+                <button onclick="openImportModal()"
+                   class="rounded-full bg-stone-500/90 px-4 py-2 text-sm font-bold text-white hover:bg-stone-600 shadow-sm transition-all duration-200 transform hover:scale-[1.02] active:scale-95"
+                   title="{{ __('Import CSV') }}">
+                   {{ __('Import CSV') }}
+                </button>
                 <button onclick="openCreateModal()"
                    class="rounded-full bg-clay-500 px-4 py-2 text-sm font-bold text-white hover:bg-clay-600 shadow-md transition-all duration-300 transform hover:scale-[1.02] active:scale-95 glow-clay">
                     {{ __('+ Tambah Transaksi') }}
@@ -74,6 +79,7 @@
                             <option value="">{{ __('Semua Tipe') }}</option>
                             <option value="income" {{ request('type') === 'income' ? 'selected' : '' }}>{{ __('Pemasukan') }}</option>
                             <option value="expense" {{ request('type') === 'expense' ? 'selected' : '' }}>{{ __('Pengeluaran') }}</option>
+                            <option value="transfer" {{ request('type') === 'transfer' ? 'selected' : '' }}>{{ __('Transfer') }}</option>
                         </select>
                     </div>
 
@@ -99,7 +105,7 @@
                             <option value="">{{ __('Semua Kategori') }}</option>
                             @foreach($categories as $category)
                                 <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>
-                                    {{ $category->name }} ({{ $category->type === 'income' ? __('Masuk') : __('Keluar') }})
+                                    {{ $category->name }} ({{ $category->type === 'income' ? __('Pemasukan') : __('Pengeluaran') }})
                                 </option>
                             @endforeach
                         </select>
@@ -170,17 +176,25 @@
                                     <td class="px-6 py-4">
                                         @if ($trx->type === 'income')
                                             <span class="rounded-md bg-sage-500/10 px-2.5 py-1 text-xs font-bold text-sage-600 dark:text-sage-400">{{ __('Pemasukan') }}</span>
-                                        @else
+                                        @elseif ($trx->type === 'expense')
                                             <span class="rounded-md bg-blush-500/10 px-2.5 py-1 text-xs font-bold text-blush-600 dark:text-blush-400">{{ __('Pengeluaran') }}</span>
+                                        @else
+                                            <span class="rounded-md bg-blue-500/10 px-2.5 py-1 text-xs font-bold text-blue-600 dark:text-blue-400">{{ __('Transfer') }}</span>
                                         @endif
                                     </td>
                                     <td class="px-6 py-4">
                                         <span class="text-sm font-medium text-stone-600 dark:text-stone-400">
-                                            {{ $trx->wallet ? $trx->wallet->name : __('Tanpa Dompet') }}
+                                            @if ($trx->type === 'transfer')
+                                                {{ $trx->wallet ? $trx->wallet->name : __('Tanpa Dompet') }} ➔ {{ $trx->targetWallet ? $trx->targetWallet->name : __('Tanpa Dompet') }}
+                                            @else
+                                                {{ $trx->wallet ? $trx->wallet->name : __('Tanpa Dompet') }}
+                                            @endif
                                         </span>
                                     </td>
                                     <td class="px-6 py-4">
-                                        @if($trx->category)
+                                        @if($trx->type === 'transfer')
+                                            <span class="text-sm text-stone-400 dark:text-stone-500">-</span>
+                                        @elseif($trx->category)
                                             <span class="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-md" style="background-color: {{ $trx->category->color }}15; color: {{ $trx->category->color }};">
                                                 {{ $trx->category->name }}
                                             </span>
@@ -188,8 +202,8 @@
                                             <span class="text-sm text-stone-400 dark:text-stone-500">-</span>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-4 text-right font-bold {{ $trx->type === 'income' ? 'text-sage-600 dark:text-sage-400' : 'text-blush-600 dark:text-blush-400' }} whitespace-nowrap">
-                                        {{ $trx->type === 'income' ? '+' : '-' }} Rp {{ number_format($trx->amount, 0, ',', '.') }}
+                                    <td class="px-6 py-4 text-right font-bold {{ $trx->type === 'income' ? 'text-sage-600 dark:text-sage-400' : ($trx->type === 'expense' ? 'text-blush-600 dark:text-blush-400' : 'text-stone-600 dark:text-stone-400') }} whitespace-nowrap">
+                                        {{ $trx->type === 'income' ? '+' : ($trx->type === 'expense' ? '-' : '⇄') }} Rp {{ number_format($trx->amount, 0, ',', '.') }}
                                     </td>
                                     <td class="px-6 py-4 text-center">
                                         <div class="flex items-center justify-center gap-3">
@@ -197,6 +211,7 @@
                                             <button onclick="openEditModal({{ json_encode([
                                                 'id' => $trx->id,
                                                 'wallet_id' => $trx->wallet_id,
+                                                'target_wallet_id' => $trx->target_wallet_id,
                                                 'category_id' => $trx->category_id,
                                                 'type' => $trx->type,
                                                 'title' => $trx->title,
@@ -267,16 +282,17 @@
                     <!-- Type Selector -->
                     <div>
                         <label for="modal_type" class="block text-sm font-bold text-stone-700 dark:text-stone-300">{{ __('Tipe') }}</label>
-                        <select name="type" id="modal_type" class="mt-1 block w-full rounded-lg border-clay-200 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-200">
+                        <select name="type" id="modal_type" onchange="toggleTransferFields()" class="mt-1 block w-full rounded-lg border-clay-200 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-200">
                             <option value="expense" {{ old('type') === 'expense' ? 'selected' : '' }}>{{ __('Pengeluaran') }}</option>
                             <option value="income" {{ old('type') === 'income' ? 'selected' : '' }}>{{ __('Pemasukan') }}</option>
+                            <option value="transfer" {{ old('type') === 'transfer' ? 'selected' : '' }}>{{ __('Transfer Antar Dompet') }}</option>
                         </select>
                         @error('type') <p class="mt-1 text-sm text-blush-500 font-semibold">{{ $message }}</p> @enderror
                     </div>
 
                     <!-- Wallet Selector -->
                     <div>
-                        <label for="modal_wallet_id" class="block text-sm font-bold text-stone-700 dark:text-stone-300">{{ __('Dompet (Wallet)') }}</label>
+                        <label for="modal_wallet_id" id="walletLabel" class="block text-sm font-bold text-stone-700 dark:text-stone-300">{{ __('Dompet (Wallet)') }}</label>
                         <select name="wallet_id" id="modal_wallet_id" class="mt-1 block w-full rounded-lg border-clay-200 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-200">
                             @foreach($wallets as $wallet)
                                 <option value="{{ $wallet->id }}" {{ old('wallet_id') == $wallet->id ? 'selected' : '' }}>
@@ -287,9 +303,28 @@
                         @error('wallet_id') <p class="mt-1 text-sm text-blush-500 font-semibold">{{ $message }}</p> @enderror
                     </div>
 
+                    <!-- Target Wallet Selector (Transfer Only) -->
+                    <div id="targetWalletGroup" class="hidden">
+                        <label for="modal_target_wallet_id" class="block text-sm font-bold text-stone-700 dark:text-stone-300">{{ __('Dompet Tujuan (To)') }}</label>
+                        <select name="target_wallet_id" id="modal_target_wallet_id" class="mt-1 block w-full rounded-lg border-clay-200 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-200">
+                            @foreach($wallets as $wallet)
+                                <option value="{{ $wallet->id }}" {{ old('target_wallet_id') == $wallet->id ? 'selected' : '' }}>
+                                    {{ $wallet->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('target_wallet_id') <p class="mt-1 text-sm text-blush-500 font-semibold">{{ $message }}</p> @enderror
+                    </div>
+
                     <!-- Category Selector (Dynamic) -->
-                    <div>
-                        <label for="modal_category_id" class="block text-sm font-bold text-stone-700 dark:text-stone-300">{{ __('Kategori') }}</label>
+                    <div id="categoryGroup">
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="modal_category_id" class="block text-sm font-bold text-stone-700 dark:text-stone-300">{{ __('Kategori') }}</label>
+                            <button type="button" onclick="toggleAddCategoryForm()"
+                                    class="text-xs font-bold text-clay-600 hover:text-clay-700 dark:text-clay-400 flex items-center gap-1 transition-colors">
+                                <span>+ Kategori Baru</span>
+                            </button>
+                        </div>
                         <select name="category_id" id="modal_category_id" class="mt-1 block w-full rounded-lg border-clay-200 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-200">
                             <option value="" data-type="all">{{ __('Pilih Kategori') }} ({{ __('opsional') }})</option>
                             @foreach($categories as $category)
@@ -299,6 +334,48 @@
                             @endforeach
                         </select>
                         @error('category_id') <p class="mt-1 text-sm text-blush-500 font-semibold">{{ $message }}</p> @enderror
+
+                        <!-- Dynamic inline Category Creation Form (Collapsible) -->
+                        <div id="inlineCategoryForm" class="hidden mt-3 p-4 rounded-xl border border-clay-200/60 dark:border-stone-700/60 bg-clay-500/5 space-y-3 transition-all duration-300">
+                            <h4 class="text-xs font-extrabold text-stone-800 dark:text-stone-200 uppercase tracking-wider">{{ __('Buat Kategori Kustom 🎨') }}</h4>
+                            
+                            <div>
+                                <label for="new_cat_name" class="block text-[11px] font-bold text-stone-500 dark:text-stone-400 mb-1">{{ __('Nama Kategori') }}</label>
+                                <input type="text" id="new_cat_name" placeholder="misal: Jajan Kopi, Bonus" 
+                                       class="block w-full rounded-lg border-clay-200 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300 focus:border-clay-500 focus:ring-clay-500 text-xs py-1.5 px-3">
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-bold text-stone-500 dark:text-stone-400 mb-1.5">{{ __('Pilih Warna') }}</label>
+                                <div class="grid grid-cols-6 gap-1.5">
+                                    @php
+                                        $palette = ['#EF4444', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#6B7280'];
+                                    @endphp
+                                    @foreach($palette as $color)
+                                        <button type="button" onclick="selectPresetColorInline('{{ $color }}')"
+                                                class="preset-inline-btn w-6 h-6 rounded-full border-2 border-transparent transition-transform hover:scale-110 shadow-sm focus:outline-none"
+                                                style="background-color: {{ $color }};" data-color="{{ $color }}"></button>
+                                    @endforeach
+                                </div>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <input type="color" id="new_cat_color_picker" oninput="syncInlineColorPicker(this.value)"
+                                           class="w-8 h-8 border-0 p-0 cursor-pointer rounded bg-transparent">
+                                    <input type="text" id="new_cat_color_input" value="#EF4444" placeholder="#KodeWarna"
+                                           class="rounded-lg border-clay-200 dark:border-stone-700 dark:bg-stone-900/60 dark:text-stone-300 focus:border-clay-500 focus:ring-clay-500 text-xs py-1 px-2.5 flex-1">
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end gap-2 pt-1">
+                                <button type="button" onclick="toggleAddCategoryForm()"
+                                        class="rounded-full bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 px-3 py-1.5 text-xs font-bold text-stone-700 dark:text-stone-300 transition-colors">
+                                    {{ __('Batal') }}
+                                </button>
+                                <button type="button" onclick="submitInlineCategory()"
+                                        class="rounded-full bg-clay-500 hover:bg-clay-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition-colors glow-clay">
+                                    {{ __('Simpan') }}
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Title -->
@@ -349,6 +426,52 @@
         </div>
     </div>
 
+    <!-- CSV Import Glassmorphic Modal -->
+    <div id="importModal" class="fixed inset-0 z-50 overflow-y-auto hidden">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-stone-950/40 backdrop-blur-sm transition-opacity" onclick="closeImportModal()"></div>
+
+        <!-- Modal Wrapper -->
+        <div class="flex min-h-screen items-center justify-center p-4">
+            <div class="relative w-full max-w-md glass-modal p-6 rounded-2xl transform transition-all scale-95 opacity-0 duration-300 ease-out z-10" id="importModalBox">
+
+                <!-- Close Button -->
+                <button class="absolute top-4 right-4 text-stone-400 hover:text-stone-600 dark:hover:text-white transition-colors" onclick="closeImportModal()">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+
+                <h3 class="text-lg font-bold text-stone-900 dark:text-white mb-4">{{ __('Import Transaksi dari CSV') }}</h3>
+                <p class="text-xs text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
+                    {{ __('Unggah catatan transaksi keuangan kamu secara massal lewat file CSV. Format kolom file CSV harus sesuai dengan hasil ekspor (Tanggal, Judul, Tipe, Dompet, Kategori, Jumlah, Catatan).') }}
+                </p>
+
+                <form action="{{ route('transactions.import') }}" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    @csrf
+                    <div>
+                        <label for="csv_file" class="block text-sm font-bold text-stone-700 dark:text-stone-300 mb-2">{{ __('Pilih File CSV') }}</label>
+                        <input type="file" name="csv_file" id="csv_file" accept=".csv,.txt" required
+                               class="block w-full text-sm text-stone-500 dark:text-stone-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-clay-500/10 file:text-clay-600 hover:file:bg-clay-500/20 border border-clay-200 dark:border-stone-700 dark:bg-stone-900/60 rounded-lg p-2">
+                        @error('csv_file') <p class="mt-1 text-sm text-blush-500 font-semibold">{{ $message }}</p> @enderror
+                    </div>
+
+                    <!-- Submit Buttons -->
+                    <div class="flex justify-end gap-3 pt-4">
+                        <button type="button" onclick="closeImportModal()"
+                                class="rounded-full bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 px-4 py-2 text-sm font-bold text-stone-700 dark:text-stone-300 transition-colors">
+                            {{ __('Batal') }}
+                        </button>
+                        <button type="submit"
+                                class="rounded-full bg-clay-500 px-5 py-2 text-sm font-bold text-white hover:bg-clay-600 shadow-sm transition-colors glow-clay">
+                            {{ __('Mulai Import') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     @push('scripts')
     <script>
         // DOM Elements
@@ -389,8 +512,26 @@
             }
         }
 
+        function toggleTransferFields() {
+            const type = typeSelect.value;
+            const walletLabel = document.getElementById('walletLabel');
+            const targetWalletGroup = document.getElementById('targetWalletGroup');
+            const categoryGroup = document.getElementById('categoryGroup');
+
+            if (type === 'transfer') {
+                walletLabel.innerText = "{{ __('Dompet Asal (From)') }}";
+                targetWalletGroup.classList.remove('hidden');
+                categoryGroup.classList.add('hidden');
+            } else {
+                walletLabel.innerText = "{{ __('Dompet (Wallet)') }}";
+                targetWalletGroup.classList.add('hidden');
+                categoryGroup.classList.remove('hidden');
+            }
+        }
+
         // Trigger category filtering when type select changes
         typeSelect.addEventListener('change', () => {
+            toggleTransferFields();
             filterCategories();
             categorySelect.value = '';
         });
@@ -410,6 +551,7 @@
             const localISODate = new Date(localDate.getTime() - (offset * 60 * 1000)).toISOString().substring(0, 10);
             document.getElementById('modal_date').value = localISODate;
 
+            toggleTransferFields();
             filterCategories();
 
             // Display Modal
@@ -430,11 +572,13 @@
             // Fill inputs
             typeSelect.value = trx.type;
             document.getElementById('modal_wallet_id').value = trx.wallet_id || '';
+            document.getElementById('modal_target_wallet_id').value = trx.target_wallet_id || '';
             document.getElementById('modal_title').value = trx.title;
             document.getElementById('modal_amount').value = Math.floor(trx.amount);
             document.getElementById('modal_date').value = trx.date;
             document.getElementById('modal_description').value = trx.description || '';
 
+            toggleTransferFields();
             // Filter and select Category
             filterCategories(trx.category_id || '');
 
@@ -463,6 +607,7 @@
                         id: "{{ old('transaction_id') }}",
                         type: "{{ old('type') }}",
                         wallet_id: "{{ old('wallet_id') }}",
+                        target_wallet_id: "{{ old('target_wallet_id') }}",
                         category_id: "{{ old('category_id') }}",
                         title: "{{ old('title') }}",
                         amount: "{{ old('amount') }}",
@@ -475,14 +620,120 @@
                     // Restore inputs manually after reset
                     typeSelect.value = "{{ old('type', 'expense') }}";
                     document.getElementById('modal_wallet_id').value = "{{ old('wallet_id') }}";
+                    document.getElementById('modal_target_wallet_id').value = "{{ old('target_wallet_id') }}";
                     document.getElementById('modal_title').value = "{{ old('title') }}";
                     document.getElementById('modal_amount').value = "{{ old('amount') }}";
                     document.getElementById('modal_date').value = "{{ old('date') }}";
                     document.getElementById('modal_description').value = "{{ old('description') }}";
+                    toggleTransferFields();
                     filterCategories("{{ old('category_id') }}");
                 }
             });
         @endif
+        // Import Modal Controls
+        const importModal = document.getElementById('importModal');
+        const importModalBox = document.getElementById('importModalBox');
+
+        function openImportModal() {
+            importModal.classList.remove('hidden');
+            setTimeout(() => {
+                importModalBox.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        function closeImportModal() {
+            importModalBox.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                importModal.classList.add('hidden');
+            }, 250);
+        }
+
+        // Inline category forms scripts
+        function toggleAddCategoryForm() {
+            const form = document.getElementById('inlineCategoryForm');
+            form.classList.toggle('hidden');
+            if (!form.classList.contains('hidden')) {
+                selectPresetColorInline('#EF4444');
+                document.getElementById('new_cat_name').focus();
+            }
+        }
+
+        function selectPresetColorInline(color) {
+            document.getElementById('new_cat_color_input').value = color;
+            document.getElementById('new_cat_color_picker').value = color;
+            
+            const btns = document.querySelectorAll('.preset-inline-btn');
+            btns.forEach(btn => {
+                if (btn.getAttribute('data-color') === color) {
+                    btn.classList.add('border-stone-800', 'dark:border-white', 'scale-110');
+                } else {
+                    btn.classList.remove('border-stone-800', 'dark:border-white', 'scale-110');
+                }
+            });
+        }
+
+        function syncInlineColorPicker(color) {
+            document.getElementById('new_cat_color_input').value = color;
+            const btns = document.querySelectorAll('.preset-inline-btn');
+            btns.forEach(btn => btn.classList.remove('border-stone-800', 'dark:border-white', 'scale-110'));
+        }
+
+        function submitInlineCategory() {
+            const nameInput = document.getElementById('new_cat_name');
+            const colorInput = document.getElementById('new_cat_color_input');
+            const typeInput = document.getElementById('modal_type');
+
+            const name = nameInput.value.trim();
+            const color = colorInput.value.trim();
+            const type = typeInput ? typeInput.value : 'expense';
+
+            if (!name) {
+                showToast("Nama kategori wajib diisi!", "error");
+                nameInput.focus();
+                return;
+            }
+
+            fetch("{{ route('categories.store') }}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify({ name, color, type })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (typeof AudioSynth !== 'undefined') {
+                        AudioSynth.playTransfer();
+                    }
+                    
+                    const select = document.getElementById('modal_category_id');
+                    const option = document.createElement('option');
+                    option.value = data.category.id;
+                    option.text = data.category.name;
+                    option.setAttribute('data-type', data.category.type);
+                    select.appendChild(option);
+
+                    nameInput.value = '';
+                    toggleAddCategoryForm();
+
+                    if (typeof categoryOptions !== 'undefined') {
+                        categoryOptions.push(option);
+                    }
+                    filterCategories(data.category.id);
+
+                    showToast(data.message, "success");
+                } else {
+                    showToast("Gagal menyimpan kategori!", "error");
+                }
+            })
+            .catch(error => {
+                console.error("Error creating category:", error);
+                showToast("Terjadi kesalahan sistem!", "error");
+            });
+        }
     </script>
     @endpush
 </x-app-layout>

@@ -270,6 +270,213 @@
                 });
             @endif
         </script>
+        <!-- Canvas for Confetti Coin Rain -->
+        <canvas id="confettiCanvas" class="fixed inset-0 pointer-events-none z-50 w-full h-full hidden"></canvas>
+
+        <script>
+            // Global Web Audio API Synthesizer
+            const AudioSynth = {
+                ctx: null,
+                init() {
+                    if (!this.ctx) {
+                        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                },
+                playCoin() {
+                    try {
+                        this.init();
+                        const now = this.ctx.currentTime;
+                        
+                        // Osc 1 (Low metal clink)
+                        const osc1 = this.ctx.createOscillator();
+                        const gain1 = this.ctx.createGain();
+                        osc1.type = 'sine';
+                        osc1.frequency.setValueAtTime(850, now);
+                        osc1.frequency.exponentialRampToValueAtTime(1200, now + 0.08);
+                        gain1.gain.setValueAtTime(0.2, now);
+                        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                        osc1.connect(gain1);
+                        gain1.connect(this.ctx.destination);
+                        
+                        // Osc 2 (High chime)
+                        const osc2 = this.ctx.createOscillator();
+                        const gain2 = this.ctx.createGain();
+                        osc2.type = 'sine';
+                        osc2.frequency.setValueAtTime(1500, now + 0.06);
+                        osc2.frequency.exponentialRampToValueAtTime(2000, now + 0.2);
+                        gain2.gain.setValueAtTime(0.15, now + 0.06);
+                        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                        osc2.connect(gain2);
+                        gain2.connect(this.ctx.destination);
+                        
+                        osc1.start(now);
+                        osc1.stop(now + 0.3);
+                        osc2.start(now + 0.06);
+                        osc2.stop(now + 0.4);
+                    } catch (e) {
+                        console.error('AudioContext fail:', e);
+                    }
+                },
+                playSwoosh() {
+                    try {
+                        this.init();
+                        const now = this.ctx.currentTime;
+                        const bufferSize = this.ctx.sampleRate * 0.3; // 0.3s
+                        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                        const data = buffer.getChannelData(0);
+                        
+                        for (let i = 0; i < bufferSize; i++) {
+                            data[i] = Math.random() * 2 - 1;
+                        }
+                        
+                        const noise = this.ctx.createBufferSource();
+                        noise.buffer = buffer;
+                        
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = 'bandpass';
+                        filter.frequency.setValueAtTime(800, now);
+                        filter.frequency.exponentialRampToValueAtTime(150, now + 0.3);
+                        
+                        const gain = this.ctx.createGain();
+                        gain.gain.setValueAtTime(0.15, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                        
+                        noise.connect(filter);
+                        filter.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        
+                        noise.start(now);
+                        noise.stop(now + 0.3);
+                    } catch (e) {
+                        console.error('AudioContext fail:', e);
+                    }
+                },
+                playTransfer() {
+                    try {
+                        this.init();
+                        const now = this.ctx.currentTime;
+                        
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(440, now);
+                        osc.frequency.setValueAtTime(660, now + 0.06);
+                        osc.frequency.setValueAtTime(880, now + 0.12);
+                        
+                        gain.gain.setValueAtTime(0.1, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                        
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        
+                        osc.start(now);
+                        osc.stop(now + 0.22);
+                    } catch (e) {
+                        console.error('AudioContext fail:', e);
+                    }
+                }
+            };
+
+            // Global Canvas Confetti system (Coin Rain)
+            const CoinConfetti = {
+                canvas: null,
+                ctx: null,
+                particles: [],
+                animationId: null,
+                init() {
+                    this.canvas = document.getElementById('confettiCanvas');
+                    this.ctx = this.canvas.getContext('2d');
+                    this.resizeCanvas();
+                    window.removeEventListener('resize', this.resizeCanvas);
+                    window.addEventListener('resize', () => this.resizeCanvas());
+                },
+                resizeCanvas() {
+                    if (this.canvas) {
+                        this.canvas.width = window.innerWidth;
+                        this.canvas.height = window.innerHeight;
+                    }
+                },
+                start() {
+                    this.init();
+                    this.canvas.classList.remove('hidden');
+                    this.particles = [];
+                    const count = 55;
+                    for (let i = 0; i < count; i++) {
+                        this.particles.push({
+                            x: Math.random() * this.canvas.width,
+                            y: -Math.random() * 200 - 50,
+                            radius: Math.random() * 8 + 6,
+                            color: Math.random() > 0.5 ? '#F59E0B' : '#FBBF24', // Gold tones
+                            speedY: Math.random() * 5 + 4,
+                            speedX: Math.random() * 3 - 1.5,
+                            rotation: Math.random() * 360,
+                            rotationSpeed: Math.random() * 8 - 4,
+                            opacity: 1
+                        });
+                    }
+                    if (this.animationId) {
+                        cancelAnimationFrame(this.animationId);
+                    }
+                    this.animate();
+                },
+                animate() {
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    let active = false;
+                    this.particles.forEach(p => {
+                        if (p.y < this.canvas.height + 50) {
+                            active = true;
+                            p.y += p.speedY;
+                            p.x += p.speedX;
+                            p.rotation += p.rotationSpeed;
+                            
+                            this.ctx.save();
+                            this.ctx.translate(p.x, p.y);
+                            this.ctx.rotate((p.rotation * Math.PI) / 180);
+                            
+                            // Draw gold coin ellipse
+                            this.ctx.beginPath();
+                            this.ctx.ellipse(0, 0, p.radius, p.radius * 0.6, 0, 0, 2 * Math.PI);
+                            this.ctx.fillStyle = p.color;
+                            this.ctx.shadowColor = 'rgba(0,0,0,0.1)';
+                            this.ctx.shadowBlur = 3;
+                            this.ctx.fill();
+                            
+                            // Draw inner detail
+                            this.ctx.beginPath();
+                            this.ctx.ellipse(0, 0, p.radius * 0.5, p.radius * 0.5 * 0.6, 0, 0, 2 * Math.PI);
+                            this.ctx.strokeStyle = '#D97706';
+                            this.ctx.lineWidth = 1;
+                            this.ctx.stroke();
+                            
+                            this.ctx.restore();
+                        }
+                    });
+                    if (active) {
+                        this.animationId = requestAnimationFrame(() => this.animate());
+                    } else {
+                        this.canvas.classList.add('hidden');
+                    }
+                }
+            };
+
+            // Hook last transaction type redirect session
+            @if (session('last_transaction_type'))
+                window.addEventListener('DOMContentLoaded', () => {
+                    const lastType = "{{ session('last_transaction_type') }}";
+                    setTimeout(() => {
+                        if (lastType === 'income') {
+                            AudioSynth.playCoin();
+                            CoinConfetti.start();
+                        } else if (lastType === 'expense') {
+                            AudioSynth.playSwoosh();
+                        } else if (lastType === 'transfer') {
+                            AudioSynth.playTransfer();
+                        }
+                    }, 400); // short delay for visual alignment with toast
+                });
+            @endif
+        </script>
+
         @stack('scripts')
     </body>
 </html>

@@ -25,4 +25,10 @@ class Wallet extends Model
     {
         return $this->hasMany(Transaction::class);
     }
+
+    // Transaksi transfer masuk ke dompet ini
+    public function transferInTransactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class, 'target_wallet_id');
+    }
 }

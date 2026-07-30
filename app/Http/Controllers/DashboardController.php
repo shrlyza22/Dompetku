@@ -7,20 +7,24 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = auth()->user();
         
-        $startOfMonth = Carbon::now()->startOfMonth();
-        $endOfMonth = Carbon::now()->endOfMonth();
+        $month = $request->input('month', Carbon::now()->month);
+        $year = $request->input('year', Carbon::now()->year);
+        $date = Carbon::createFromDate($year, $month, 1);
 
-        // Total Pemasukan bulan ini
+        $startOfMonth = $date->copy()->startOfMonth();
+        $endOfMonth = $date->copy()->endOfMonth();
+
+        // Total Pemasukan bulan terpilh
         $totalIncome = $user->transactions()
             ->where('type', 'income')
             ->whereBetween('date', [$startOfMonth, $endOfMonth])
             ->sum('amount');
 
-        // Total Pengeluaran bulan ini
+        // Total Pengeluaran bulan terpilih
         $totalExpense = $user->transactions()
             ->where('type', 'expense')
             ->whereBetween('date', [$startOfMonth, $endOfMonth])
@@ -39,7 +43,7 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
-        // Rincian Pengeluaran berdasarkan Kategori (bulan berjalan)
+        // Rincian Pengeluaran berdasarkan Kategori (bulan terpilh)
         $expenseByCategory = $user->transactions()
             ->where('type', 'expense')
             ->whereBetween('date', [$startOfMonth, $endOfMonth])
@@ -55,6 +59,23 @@ class DashboardController extends Controller
                 ];
             });
 
-        return view('dashboard', compact('totalIncome', 'totalExpense', 'netBalance', 'recentTransactions', 'expenseByCategory'));
+        $availableYears = range(Carbon::now()->year - 4, Carbon::now()->year + 1);
+        $availableMonths = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus', 
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+
+        return view('dashboard', compact(
+            'totalIncome', 
+            'totalExpense', 
+            'netBalance', 
+            'recentTransactions', 
+            'expenseByCategory', 
+            'month', 
+            'year', 
+            'availableMonths', 
+            'availableYears'
+        ));
     }
 }

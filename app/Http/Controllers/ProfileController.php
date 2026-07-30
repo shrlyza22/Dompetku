@@ -59,6 +59,26 @@ class ProfileController extends Controller
     }
 
     /**
+     * Update the user's monthly budget limit.
+     */
+    public function updateBudget(Request $request)
+    {
+        $validated = $request->validate([
+            'limit' => 'required|integer|min:0',
+        ]);
+
+        $request->user()->update([
+            'monthly_budget_limit' => $validated['limit'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'limit' => $validated['limit'],
+            'message' => 'Limit anggaran bulanan berhasil diperbarui!',
+        ]);
+    }
+
+    /**
      * Delete the user's account.
      */
     public function destroy(Request $request): RedirectResponse
