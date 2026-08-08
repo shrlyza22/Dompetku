@@ -136,9 +136,4 @@ dompetku/
 Pull request sangat disambut! Untuk perubahan besar, buka issue terlebih dahulu.
 
 ---
-
-<div align="center">
-
-Dibuat dengan 🤎 oleh **Sheren Aulia**
-
 </div>
